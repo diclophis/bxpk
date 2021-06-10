@@ -2,6 +2,11 @@
 
 # MIT https://github.com/alChaCC/easy-box-packer
 
+#   * pure stdlib
+#   * heavy compute increased with factorial 
+#   * small seed input, large result output
+#   * relative differences between ruby interps
+
 module EasyBoxPacker
   class << self
     def pack(container, items)

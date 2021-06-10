@@ -1,5 +1,12 @@
 #!/usr/bin/env ruby
 
+method = :threads
+stochastic = true
+max_solutions = 8
+
+Thread.abort_on_exception = true
+GC.enable
+
 gem_dir = File.dirname(File.dirname(File.realpath(__FILE__)))
 lib = File.join(gem_dir, "lib")
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
@@ -16,43 +23,107 @@ items1 = [
   { index: SecureRandom.uuid, dimensions: [17, 19, 23] },
 ]
 
-items2 = [
-  { dimensions: [1, 1, 1], weight: 1 }
-] * 64
+items2 = []
+64.times {
+  items2 << { index: SecureRandom.uuid, dimensions: [1, ((rand > 0.1) ? 1 : 10), 1], weight: 1 }
+}
 
-items3 = Array.new(128) {
+items3 = Array.new(150) {
   {
     index: SecureRandom.uuid,
-    dimensions: [3.0 * (1.0 + rand) * 3.0, 3.0 * (1.0 * rand) * 3.0, 5.0 * (0.5 + rand) * 5.0],
+    dimensions: [5.0 + (rand * 5.0) + ((rand > 0.5) ? 7.0 : 0.0), 5.0 + (rand * 5.0) + ((rand > 0.5) ? 9.0 : 0.0), 11.0 + (rand * 5.0)],
     weight: 1
   }
 }
 
-items = items3.shuffle
+items = items3
 factorial = (Math.gamma(items.length+1)).to_i
 
 solutions = []
+durations = []
+
+if stochastic
+  items.shuffle!
+end
 
 itemsp = items.permutation
 
 min_score = 99999999999999
 max_score = -1
-solutions_desired = ([factorial, 1024].min)
-
 #NOTE: 40320 benchmark number
+solutions_desired = ([factorial, max_solutions].min)
+
+threads = []
+ractors = []
+all_bins = []
+
+puts [:spawning_workers, method, solutions_desired].inspect
+
 solutions_desired.times { |i|
-  itemsn = itemsp.next.shuffle
+  itemsn = itemsp.next #.shuffle
 
-  bins = EasyBoxPacker.pack(
-    container,
-    itemsn
-  )
+  if stochastic
+    itemsn.shuffle!
+  end
 
-  raise bins[:errors].inspect unless bins[:errors].empty?
+  case method
+    when :serial
+      lbins = EasyBoxPacker.pack(
+        container,
+        itemsn
+      )
+      raise lbins[:errors].inspect unless lbins[:errors].empty?
+      all_bins << lbins
+    when :threads
+      threads << Thread.new(container, itemsn) { |c, i|
+        start = Time.now.to_f
 
+        tbins = EasyBoxPacker.pack(
+          c,
+          i
+        )
+        raise tbins[:errors].inspect unless tbins[:errors].empty?
+
+        stop = Time.now.to_f
+        durations << (stop - start).to_f
+
+        tbins
+      }
+
+    #when :fibers....
+
+    when :ractors
+      #ractors << Ractor.new(container, itemsn) { |c, i|
+      #  rbins = EasyBoxPacker.pack(
+      #    c,
+      #    i
+      #  )
+      #  raise rbins[:errors].inspect unless rbins[:errors].empty?
+      #  rbins
+      #}
+  end
+}
+
+case method
+  when :serial
+
+  when :threads
+    puts [:waiting_for_thread_count, threads.length].inspect
+    all_bins = threads.collect { |thr| thr.value }
+
+  when :ractors
+    puts [:waiting_for_ractor_count, ractors.length].inspect
+    all_bins = ractors.collect { |rac| rac.take }
+
+end
+
+puts [:generation_completed]
+
+all_bins.each { |bins|
   solutions << bins
 
   score = bins[:packings].length
+
   if score < min_score
     min_score = score
   end
@@ -62,8 +133,17 @@ solutions_desired.times { |i|
   end
 }
 
-puts "solved #{solutions_desired} or #{"%0.10f" % ((solutions_desired.to_f / factorial.to_f) * 100.0)}% of #{factorial} possible, min/max bins: #{min_score}/#{max_score}"
+averge_item_time = durations.sum / durations.length.to_f
+puts average_item_time
 
-mvc = EasyBoxPacker.find_smallest_container(items)
+puts [:sorting_completed]
 
-File.write("public/rendering.json", {:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
+puts "solved #{solutions_desired} or #{"%0.16f" % ((solutions_desired.to_f / factorial.to_f) * 100.0)}% of #{factorial} possible, min/max bins: #{min_score}/#{max_score}"
+
+#mvc = EasyBoxPacker.find_smallest_container(items)
+mvc = nil
+#puts mvc.inspect
+
+#File.write("public/rendering.json", {:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
+
+puts "persisted"

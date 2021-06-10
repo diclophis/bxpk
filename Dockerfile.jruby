@@ -1,0 +1,6 @@
+#FROM ruby:3.0.1
+FROM jruby:latest
+
+COPY . /var/tmp/app
+
+WORKDIR /var/tmp/app

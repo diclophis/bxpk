@@ -12,13 +12,14 @@ let light;
 let lastPlacement;
 
 let scale = 1.0;
-let binOffsetBump = scale * 55.0;
-let solOffsetBump = scale * 65.0;
 
 let fetchSolutions = await fetch('rendering.json');
 let rendering = await fetchSolutions.json();
 let totalSolutions = rendering['solutions'].length;
 let containerBin = rendering['container'];
+
+let binOffsetBump = scale * containerBin["dimensions"][0] * 1.9;
+let solOffsetBump = scale * containerBin["dimensions"][2] * 2.0;
 
 let currentSolution = 0;
 let currentBin = 0;
@@ -30,7 +31,7 @@ let container, stats;
 let camera, scene, raycaster, renderer;
 let controls;
 
-let dashedLine = new THREE.LineDashedMaterial( { color: 0xffaa00, dashSize: 3, gapSize: 1 } );
+let dashedLine = new THREE.LineDashedMaterial( { opacity: 0.33, transparent: true, color: 0xffaa00, dashSize: 3, gapSize: 1 } );
 
 const mouse = new THREE.Vector2();
 
@@ -40,7 +41,6 @@ let enableDrag = false;
 let binOffset = 0.0;
 let solOffset = 0.0;
 let lag = 750000.0;
-
 
 let INTERSECTED;
 let start;
@@ -143,13 +143,15 @@ function placements(i) {
 function placeBin() {
   currentPlacement = 0;
 
-	const lineSegments = new THREE.LineSegments(geometryBox, dashedLine);
-	lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][2] * 0.5);
-	lineSegments.position.y = 0 + (scale * containerBin['dimensions'][1] * 0.5);
-	lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][0] * 0.5);
+  if (currentSolution == 0 && currentBin == 0) {
+    const lineSegments = new THREE.LineSegments(geometryBox, dashedLine);
+    lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][2] * 0.5);
+    lineSegments.position.y = 0 + (scale * containerBin['dimensions'][1] * 0.5);
+    lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][0] * 0.5);
 
-	lineSegments.computeLineDistances();
-	scene.add( lineSegments );
+    lineSegments.computeLineDistances();
+    scene.add( lineSegments );
+  }
 }
 
 function nextBin(totalBins) {
@@ -304,7 +306,7 @@ function init() {
   controls = new OrbitControls( camera, renderer.domElement );
   controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
   controls.autoRotate = false;
-  controls.dampingFactor = 0.33;
+  controls.dampingFactor = 0.075;
   controls.screenSpacePanning = false;
   controls.minDistance = 1;
   controls.maxDistance = 10000;
@@ -460,14 +462,10 @@ function all() {
   while(totalBins = nextSolution()) {
     while(totalPlacements = nextBin(totalBins)) {
       while(nextPlacement(totalPlacements)) {
-        console.log(currentSolution, currentBin, currentPlacement);
-
         currentPlacement++;
       }
-    
       currentBin++;
     }
-
     currentSolution++;
   }
 }
