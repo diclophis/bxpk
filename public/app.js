@@ -11,7 +11,7 @@ let lastPlacement;
 
 let scale = 1.0;
 
-let fetchSolutions = await fetch('rendering.json');
+let fetchSolutions = await fetch('rendering-jruby.json');
 let rendering = await fetchSolutions.json();
 let totalSolutions = rendering['solutions'].length;
 let containerBin = rendering['container'];
