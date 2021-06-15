@@ -114,4 +114,4 @@ mvc = nil
 
 buffer_out_bytes = $stdout.write({:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
 
-$stderr.puts "persisted #{buffer_out_bytes}bytes"
+$stderr.puts "persisted #{'%0.2f' % (buffer_out_bytes.to_f / 1000.0 / 1000.0)}mb"

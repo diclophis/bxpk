@@ -16,8 +16,10 @@ let rendering = await fetchSolutions.json();
 let totalSolutions = rendering['solutions'].length;
 let containerBin = rendering['container'];
 
-let binOffsetBump = scale * containerBin["dimensions"][0];
-let solOffsetBump = scale * containerBin["dimensions"][2];
+let binOffsetBump = (scale * containerBin["dimensions"][0]) + (scale * 2.0);
+let solOffsetBump = (scale * containerBin["dimensions"][2]) + (scale * 33.0);
+
+console.log(containerBin, binOffsetBump, solOffsetBump);
 
 let currentSolution = 0;
 let currentBin = 0;
@@ -100,7 +102,7 @@ function box( width, height, depth ) {
   return geometry;
 }
 
-const geometryBox = box(containerBin["dimensions"][2], containerBin["dimensions"][1], containerBin["dimensions"][0]);
+const geometryBox = box(containerBin["dimensions"][0], containerBin["dimensions"][1], containerBin["dimensions"][2]);
 
 function nextSolution() {
   if (currentSolution < totalSolutions) {
@@ -141,15 +143,15 @@ function placements(i) {
 function placeBin() {
   currentPlacement = 0;
 
-  if (currentSolution == 0 && currentBin == 0) {
+  //if (currentSolution == 0 && currentBin == 0) {
     const lineSegments = new THREE.LineSegments(geometryBox, dashedLine);
-    lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][2] * 0.5);
+    lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][0] * 0.5);
     lineSegments.position.y = 0 + (scale * containerBin['dimensions'][1] * 0.5);
-    lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][0] * 0.5);
+    lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][2] * 0.5);
 
     lineSegments.computeLineDistances();
     scene.add( lineSegments );
-  }
+  //}
 }
 
 function nextBin(totalBins) {
@@ -181,7 +183,33 @@ function nextPlacement(totalPlacements) {
     let position = placement['position'];
     let index = placement['index'];
 
-    let geometry = new THREE.BoxGeometry(scale * dimensions[0] * 1.0, scale * dimensions[1] * 1.0, scale * dimensions[2] * 1.0, 1, 1, 1);
+    let a,b,c;
+    if (
+      containerBin['dimensions'][0] > containerBin['dimensions'][1] && containerBin['dimensions'][0] > containerBin['dimensions'][2]
+      ) {
+    //if xLarge
+    //  [0, 1, 2]
+      a = 0;
+      b = 1;
+      c = 2;
+    } else if (
+      containerBin['dimensions'][1] > containerBin['dimensions'][0] && containerBin['dimensions'][0] > containerBin['dimensions'][2]
+    ) {
+    //if yLarge
+    //  [2, 0, 1]
+      a = 2;
+      b = 0;
+      c = 1;
+    } else {
+    //if zLarge
+    //  [2, 1, 0]
+      a = 2;
+      b = 1;
+      c = 0;
+    }
+
+      
+    let geometry = new THREE.BoxGeometry(scale * dimensions[a] * 1.0, scale * dimensions[b] * 1.0, scale * dimensions[c] * 1.0, 1, 1, 1);
 
     if (!colors[index]) {
       colors[index] = new THREE.MeshLambertMaterial( { opacity: 1.0, transparent: false, color: Math.random() * 0xffffff } );
@@ -192,9 +220,9 @@ function nextPlacement(totalPlacements) {
     //object.castShadow = true;
     //object.receiveShadow = true;
 
-    object.position.x = (scale * position[0] + (scale * dimensions[0] * 0.5)) + binOffset;
-    object.position.y = (scale * position[1] + (scale * dimensions[1] * 0.5));
-    object.position.z = (scale * position[2] + (scale * dimensions[2] * 0.5)) + solOffset;
+    object.position.x = (scale * position[a] + (scale * dimensions[a] * 0.5)) + binOffset;
+    object.position.y = (scale * position[b] + (scale * dimensions[b] * 0.5));
+    object.position.z = (scale * position[c] + (scale * dimensions[c] * 0.5)) + solOffset;
 
     scene.add(object);
     objects.push(object);

@@ -14,5 +14,6 @@ docker build -f Dockerfile -t bxpk:latest . 2>&1 > /dev/null
 #docker run --cpus=1 --rm bxpk:latest bin/mkbox 1024 > buffer/1024-random.json
 #docker run --cpus=1 --rm bxpk:latest bin/mkbox 8 > buffer/8-random.json
 
-time docker run --cpus=10 -i --rm bxpk:latest-jruby bin/bxpk 4 4 --shuffle < buffer/1024-random.json > public/rendering.json
+#time docker run --cpus=10 -i --rm bxpk:latest-jruby bin/bxpk 4 4 --shuffle < buffer/8-random.json > public/rendering.json
+time docker run --cpus=10 -i --rm bxpk:latest-jruby bin/bxpk 32 8 --shuffle < buffer/1024-random.json > public/rendering.json
 #time docker run --cpus=10 -i --rm bxpk:latest bin/bxpk 8 8 --shuffle < buffer/1024-random.json > public/rendering.json
