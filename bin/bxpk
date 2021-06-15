@@ -11,9 +11,10 @@ require 'securerandom'
 require 'json'
 require 'easy_box_packer'
 
-stochastic = true
-max_solutions = 4
-thread_count = 1
+max_solutions = ARGV[0] ? ARGV[0].to_i : 4
+thread_count = ARGV[1] ? ARGV[1].to_i : 1
+stochastic = ARGV[2]
+
 items = JSON.load($stdin.read, nil, symbolize_names: true, create_additions: false)
 if stochastic
   items.shuffle!
@@ -23,7 +24,7 @@ itemsp = items.permutation
 Thread.abort_on_exception = true
 GC.enable
 
-container = { dimensions: [29.23, 31.33, 47.53], weight_limit: 9999999999 }
+container = { dimensions: [20, 20, 20], weight_limit: 9999999999 }
 
 factorial = begin
               (Math.gamma(items.length+1)).to_i
@@ -44,7 +45,7 @@ all_bins = []
 inbound = Queue.new
 outbound = Queue.new
 
-puts [:spawning_producer, solutions_desired].inspect
+$stderr.puts [:spawning_producer, solutions_desired].inspect
 
 producer = Thread.new {
   solutions_desired.times { |i|
@@ -59,7 +60,7 @@ producer = Thread.new {
   inbound.close
 }
 
-puts [:spawning_consumers, thread_count].inspect
+$stderr.puts [:spawning_consumers, thread_count].inspect
 
 consumers = []
 thread_count.times do
@@ -81,7 +82,7 @@ until outbound.length == solutions_desired
 end
 outbound.close
 
-puts [:generation_completed]
+$stderr.puts [:generation_completed]
 
 loop do
   bins, duration = outbound.pop
@@ -102,16 +103,15 @@ loop do
 end
 
 average_item_time = durations.sum / durations.length.to_f
-puts ("%02.5f" % average_item_time)
 
-puts [:sorting_completed]
+$stderr.puts [:sorting_completed, ("%02.5f" % average_item_time)]
 
-puts "solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
+$stderr.puts "solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
 
 #mvc = EasyBoxPacker.find_smallest_container(items)
 mvc = nil
 #puts mvc.inspect
 
-#puts File.write("public/rendering.json", {:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
+buffer_out_bytes = $stdout.write({:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
 
-puts "persisted"
+$stderr.puts "persisted #{buffer_out_bytes}bytes"

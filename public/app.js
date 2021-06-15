@@ -1,7 +1,5 @@
 //
 
-//TODO https://github.com/mrdoob/three.js/blob/dev/examples/webgl_lines_dashed.html
-
 import * as THREE from './three.module.js';
 import { OrbitControls } from './OrbitControls.js';
 import { DragControls } from './DragControls.js';
@@ -18,8 +16,8 @@ let rendering = await fetchSolutions.json();
 let totalSolutions = rendering['solutions'].length;
 let containerBin = rendering['container'];
 
-let binOffsetBump = scale * containerBin["dimensions"][0] * 1.9;
-let solOffsetBump = scale * containerBin["dimensions"][2] * 2.0;
+let binOffsetBump = scale * containerBin["dimensions"][0];
+let solOffsetBump = scale * containerBin["dimensions"][2];
 
 let currentSolution = 0;
 let currentBin = 0;
@@ -160,7 +158,6 @@ function nextBin(totalBins) {
 
     placeBin();
 
-
     let thisSolution = rendering['solutions'][currentSolution];
     if (typeof(thisSolution) === 'undefined') {
       debugger;
@@ -184,7 +181,7 @@ function nextPlacement(totalPlacements) {
     let position = placement['position'];
     let index = placement['index'];
 
-    let geometry = new THREE.BoxGeometry(scale * dimensions[0], scale * dimensions[1], scale * dimensions[2], 2, 2, 2);
+    let geometry = new THREE.BoxGeometry(scale * dimensions[0] * 1.0, scale * dimensions[1] * 1.0, scale * dimensions[2] * 1.0, 1, 1, 1);
 
     if (!colors[index]) {
       colors[index] = new THREE.MeshLambertMaterial( { opacity: 1.0, transparent: false, color: Math.random() * 0xffffff } );
