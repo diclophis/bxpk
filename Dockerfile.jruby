@@ -1,5 +1,6 @@
-#FROM ruby:3.0.1
 FROM jruby:latest
+
+RUN gem install rack
 
 COPY . /var/tmp/app
 

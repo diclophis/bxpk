@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: http-api
+spec:
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      name: http-api
+  template:
+    metadata:
+      labels:
+        name: http-api
+    spec:
+      volumes:
+      - name: cache-volume
+        emptyDir: {}
+      securityContext:
+        fsGroup: 33
+      initContainers:
+      - name: bxpk-hydrate
+        image: bxpk:latest-jruby
+        imagePullPolicy: IfNotPresent
+        volumeMounts: 
+        - mountPath: /var/tmp/app/public/shared
+          name: cache-volume
+        resources:
+          requests:
+            memory: 50Mi
+            cpu: 10m
+          limits:
+            memory: 400Mi
+            cpu: 5000m
+        command:
+        - "bash"
+        - "script/hydrate.sh"
+      containers:
+      - name: bxpk-bardin-haus-app
+        image: bxpk:latest-jruby
+        imagePullPolicy: IfNotPresent
+        volumeMounts: 
+        - mountPath: /var/tmp/app/public/shared
+          name: cache-volume
+        ports:
+        - containerPort: 8888
+        resources:
+          requests:
+            memory: 50Mi
+            cpu: 10m
+          limits:
+            memory: 400Mi
+            cpu: 5000m
+        command:
+        - "rackup"
+        - "config.ru"
+        - "--host"
+        - "0.0.0.0"
+        env: &1
+        - name: SERVER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: overlay-vars
+              key: SERVER_NAME

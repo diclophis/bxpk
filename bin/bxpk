@@ -24,7 +24,7 @@ itemsp = items.permutation
 Thread.abort_on_exception = true
 GC.enable
 
-container = { dimensions: [20, 20, 20], weight_limit: 9999999999 }
+container = { dimensions: [40, 20, 20], weight_limit: 9999999999 }
 
 factorial = begin
               (Math.gamma(items.length+1)).to_i
