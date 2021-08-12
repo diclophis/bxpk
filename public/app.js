@@ -28,7 +28,7 @@ let objects = [];
 let colors = {};
 
 let container, stats;
-let camera, scene, raycaster, renderer;
+let camera, scene, raycaster, renderer, justTheBins, justTheBoxes;
 let controls;
 
 let dashedLine = new THREE.LineDashedMaterial( { opacity: 0.33, transparent: true, color: 0xffaa00, dashSize: 3, gapSize: 1 } );
@@ -143,15 +143,13 @@ function placements(i) {
 function placeBin() {
   currentPlacement = 0;
 
-  //if (currentSolution == 0 && currentBin == 0) {
-    const lineSegments = new THREE.LineSegments(geometryBox, dashedLine);
-    lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][0] * 0.5);
-    lineSegments.position.y = 0 + (scale * containerBin['dimensions'][1] * 0.5);
-    lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][2] * 0.5);
+  const lineSegments = new THREE.LineSegments(geometryBox, dashedLine);
+  lineSegments.position.x = binOffset + (scale * containerBin['dimensions'][0] * 0.5);
+  lineSegments.position.y = 0 + (scale * containerBin['dimensions'][1] * 0.5);
+  lineSegments.position.z = solOffset + (scale * containerBin['dimensions'][2] * 0.5);
 
-    lineSegments.computeLineDistances();
-    scene.add( lineSegments );
-  //}
+  lineSegments.computeLineDistances();
+  justTheBins.add(lineSegments);
 }
 
 function nextBin(totalBins) {
@@ -187,22 +185,22 @@ function nextPlacement(totalPlacements) {
     if (
       containerBin['dimensions'][0] > containerBin['dimensions'][1] && containerBin['dimensions'][0] > containerBin['dimensions'][2]
       ) {
-    //if xLarge
-    //  [0, 1, 2]
+      //if xLarge
+      //  [0, 1, 2]
       a = 0;
       b = 1;
       c = 2;
     } else if (
       containerBin['dimensions'][1] > containerBin['dimensions'][0] && containerBin['dimensions'][0] > containerBin['dimensions'][2]
     ) {
-    //if yLarge
-    //  [2, 0, 1]
+      //if yLarge
+      //  [2, 0, 1]
       a = 2;
       b = 0;
       c = 1;
     } else {
-    //if zLarge
-    //  [2, 1, 0]
+      //if zLarge
+      //  [2, 1, 0]
       a = 2;
       b = 1;
       c = 0;
@@ -215,18 +213,19 @@ function nextPlacement(totalPlacements) {
       colors[index] = new THREE.MeshLambertMaterial( { opacity: 1.0, transparent: false, color: Math.random() * 0xffffff } );
     }
 
-    const object = new THREE.Mesh(geometry, colors[index]);
+    const box = new THREE.Mesh(geometry, colors[index]);
 
     //object.castShadow = true;
     //object.receiveShadow = true;
 
-    object.position.x = (scale * position[a] + (scale * dimensions[a] * 0.5)) + binOffset;
-    object.position.y = (scale * position[b] + (scale * dimensions[b] * 0.5));
-    object.position.z = (scale * position[c] + (scale * dimensions[c] * 0.5)) + solOffset;
+    box.position.x = (scale * position[a] + (scale * dimensions[a] * 0.5)) + binOffset;
+    box.position.y = (scale * position[b] + (scale * dimensions[b] * 0.5));
+    box.position.z = (scale * position[c] + (scale * dimensions[c] * 0.5)) + solOffset;
 
-    scene.add(object);
-    objects.push(object);
-    lastPlacement = object;
+    objects.push(box);
+    lastPlacement = box;
+
+    justTheBoxes.add(box);
 
     return true;
   }
@@ -253,6 +252,12 @@ function init() {
   scene.position.y = 0;
   scene.position.z = 0;
 
+  justTheBins = new THREE.Object3D();
+  scene.add(justTheBins);
+
+  justTheBoxes = new THREE.Object3D();
+  scene.add(justTheBoxes);
+
   camera.position.set(0 + (scale * 333), 0 + (scale * 444), ((scale * 555)));
   camera.lookAt( scene.position );
   lastPlacement = scene;
@@ -264,45 +269,9 @@ function init() {
   const ambient = new THREE.AmbientLight( 0xffffff , 0.5);
   scene.add( ambient );
 
-  //light = new THREE.SpotLight( 0xffffff, 1, 0, Math.PI / 1.5, 0.1 );
   light = new THREE.DirectionalLight( 0xffffff, 1.0);
-  //light = new THREE.PointLight( 0xffffff, 1.0);
-
-  //light.castShadow = true;
-  //light.shadow.camera.near = 1 * scale;
-  //light.shadow.camera.far = 10000 * scale;
-
-  //light.shadow.bias = 0.0000000001;
-  //light.shadow.normalBias = 0.0000000001;
-
-  //light.shadow.camera.left = -500 * scale;
-  //light.shadow.camera.right = 500 * scale;
-  //light.shadow.camera.top = 500 * scale;
-  //light.shadow.camera.bottom = -500 * scale;
-
-  //light.shadow.mapSize.width = 4096;
-  //light.shadow.mapSize.height = 4096;
 
   scene.add(light);
-  //camera.add(light);
-
-  //const helper = new THREE.CameraHelper( light.shadow.camera );
-  //scene.add( helper );
-
-  //const lightA = new THREE.DirectionalLight( 0xffffff, 0.01);
-  //lightA.position.set(0, 1, 0)
-  //scene.add(lightA);
-
-  //const lightA = new THREE.DirectionalLight( 0xffffff, 1.0);
-  //lightA.position.set(1, 1, 1).normalize();
-  //scene.add(lightA);
-  //const helperA = new THREE.DirectionalLightHelper( lightA, 15);
-  //scene.add( helperA );
-  //const lightB = new THREE.DirectionalLight( 0xffffff, 1.0);
-  //lightB.position.set(-1, 1, -1).normalize();
-  //scene.add( lightB );
-  //const helperB = new THREE.DirectionalLightHelper( lightB, 15);
-  //scene.add( helperB );
 
   group = new THREE.Group();
   scene.add(group);
@@ -318,16 +287,6 @@ function init() {
 
   container.appendChild( renderer.domElement );
 
-  //stats = new Stats();
-  //container.appendChild( stats.dom );
-
-  //document.addEventListener( 'mousemove', onPointerMove );
-  //dragControls = new DragControls( [ ... objects ], camera, renderer.domElement );
-  //dragControls.addEventListener('drag', render );
-  //document.addEventListener('click', onClick );
-  //window.addEventListener('keydown', onKeyDown );
-  //window.addEventListener('keyup', onKeyUp );
-
   controls = new OrbitControls( camera, renderer.domElement );
   controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
   controls.autoRotate = false;
@@ -338,17 +297,6 @@ function init() {
   controls.enablePan = true;
 
   window.addEventListener('resize', onWindowResize );
-
-  //const geometry = new THREE.PlaneGeometry(10, 10);
-  //const planeMaterial = new THREE.MeshLambertMaterial( { color: 0xaaaaaa } );
-  //const ground = new THREE.Mesh( geometry, planeMaterial );
-  //ground.position.set( 0, 0, 0 );
-  //ground.rotation.x = - Math.PI / 2;
-  //ground.scale.set( scale * 1000, scale * 1000, scale * 1000 );
-  //ground.castShadow = false;
-  //ground.receiveShadow = false;
-  //scene.add( ground );
-  //placeBin();
 }
 
 function onClick( event ) {
@@ -413,76 +361,24 @@ function onPointerMove( event ) {
 function animate(timestamp) {
   requestAnimationFrame( animate );
 
-//  if (start === undefined) {
-//    start = timestamp;
-//  }
-//
-//  const elapsed = timestamp - start;
-//  decay += elapsed;
-//
-//  //console.log(decay);
-//
-//  if (decay > lag) {
-//  /*
-//        //0 1 1 1 0 1
-//        console.log(currentSolution, totalSolutions, currentBin, totalBins, currentPlacement, placements.length);
-//
-//        if (currentBin < totalBins - 1) {
-//          console.log("A");
-//
-//          if (currentPlacement < placements.length) {
-//            console.log("B");
-//
-//            addPlacement(currentPlacement);
-//            currentPlacement++;
-//          } else {
-//            console.log("C");
-//
-//            nextBin();
-//          }
-//        } else if (currentSolution < totalSolutions - 1) {
-//          console.log("D");
-//
-//          nextSolution();
-//        }
-//  */
-//    console.log("place");
-//
-//    decay = 0.0;
-//  }
-
   controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
 
-  let vector = camera.position.clone(); //Get camera position and put into variable
-  vector.applyMatrix4( camera.matrixWorld ); //Hold the camera location in matrix world
-  light.position.set( vector.x, vector.y, vector.z);
+  //let vector = camera.position.clone(); //Get camera position and put into variable
+  //vector.applyMatrix4( camera.matrixWorld ); //Hold the camera location in matrix world
+  //light.position.set( vector.x, vector.y, vector.z);
 
   render();
-
-  //stats.update();
 }
 
 function render() {
-  //raycaster.setFromCamera( pointer, camera );
-  //const intersects = raycaster.intersectObjects( scene.children );
-  //if ( intersects.length > 0 ) {
-  //  if ( INTERSECTED != intersects[ 0 ].object ) {
-  //    if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
-  //    INTERSECTED = intersects[ 0 ].object;
-  //    INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
-  //    INTERSECTED.material.emissive.setHex( 0xff0000 );
-  //  }
-  //} else {
-  //  if ( INTERSECTED ) INTERSECTED.material.emissive.setHex( INTERSECTED.currentHex );
-  //  INTERSECTED = null;
-  //}
-
   renderer.render( scene, camera );
 }
 
 function all() {
   let totalBins;
   let totalPlacements;
+  let nextBox;
+  let nextBin;
 
   while(totalBins = nextSolution()) {
     while(totalPlacements = nextBin(totalBins)) {
