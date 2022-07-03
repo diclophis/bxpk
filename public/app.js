@@ -14,12 +14,14 @@ let scale = 1.0;
 let fetchSolutions = await fetch('shared/rendering.json');
 let rendering = await fetchSolutions.json();
 let totalSolutions = rendering['solutions'].length;
+console.log("foo", totalSolutions);
+
 let containerBin = rendering['container'];
 
 let binOffsetBump = (scale * containerBin["dimensions"][0]) + (scale * 2.0);
 let solOffsetBump = (scale * containerBin["dimensions"][2]) + (scale * 33.0);
 
-console.log(containerBin, binOffsetBump, solOffsetBump);
+console.log("bar", containerBin, binOffsetBump, solOffsetBump);
 
 let currentSolution = 0;
 let currentBin = 0;
@@ -206,7 +208,6 @@ function nextPlacement(totalPlacements) {
       c = 0;
     }
 
-      
     let geometry = new THREE.BoxGeometry(scale * dimensions[a] * 1.0, scale * dimensions[b] * 1.0, scale * dimensions[c] * 1.0, 1, 1, 1);
 
     if (!colors[index]) {
@@ -378,7 +379,6 @@ function all() {
   let totalBins;
   let totalPlacements;
   let nextBox;
-  let nextBin;
 
   while(totalBins = nextSolution()) {
     while(totalPlacements = nextBin(totalBins)) {

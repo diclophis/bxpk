@@ -24,7 +24,7 @@ spec:
         fsGroup: 33
       initContainers:
       - name: bxpk-hydrate
-        image: bxpk:latest-jruby
+        image: bxpk:latest
         imagePullPolicy: IfNotPresent
         volumeMounts: 
         - mountPath: /var/tmp/app/public/shared
@@ -41,7 +41,7 @@ spec:
         - "script/hydrate.sh"
       containers:
       - name: bxpk-bardin-haus-app
-        image: bxpk:latest-jruby
+        image: bxpk:latest
         imagePullPolicy: IfNotPresent
         volumeMounts: 
         - mountPath: /var/tmp/app/public/shared

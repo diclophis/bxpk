@@ -1,6 +1,6 @@
-FROM ruby:3.0.1
+FROM ruby:3.2.0-preview1
 
-RUN gem install rack
+RUN gem install rack webrick
 
 COPY . /var/tmp/app
 
