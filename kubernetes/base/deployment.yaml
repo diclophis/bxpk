@@ -53,7 +53,7 @@ spec:
             memory: 50Mi
             cpu: 10m
           limits:
-            memory: 400Mi
+            memory: 3200Mi
             cpu: 5000m
         command:
         - "rackup"

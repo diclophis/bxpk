@@ -1,6 +1,6 @@
 FROM jruby:latest
 
-RUN gem install rack
+RUN gem install rack webrick
 
 COPY . /var/tmp/app
 

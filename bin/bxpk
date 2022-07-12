@@ -35,6 +35,8 @@ factorial = begin
               N_MAX
             end
 
+#xxx = Mutex.new
+
 sorted_by_x = OrderingSystem.new do |a, b|
   left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
   right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
@@ -91,33 +93,59 @@ thread_count.times do
   consumers << Thread.new do
     while i = inbound.pop
       start = Time.now.to_f
-      tbins = EasyBoxPacker.pack(
+      bins = EasyBoxPacker.pack(
         container,
         i
       )
-      raise tbins[:errors].inspect unless tbins[:errors].empty?
-      outbound << [tbins, (Time.now.to_f - start).to_f]
+      raise bins[:errors].inspect unless bins[:errors].empty?
+      outbound << [bins, (Time.now.to_f - start).to_f]
+      sorted_by_x.order_by(bins[:uuid], bins)
+      sorted_by_y.order_by(bins[:uuid], bins)
+      sorted_by_z.order_by(bins[:uuid], bins)
     end
   end
 end
 
-until outbound.length == solutions_desired
-  Thread.pass
-end
-outbound.close
+time_start = Time.now.to_f
+#until outbound.length == solutions_desired
+#  Thread.pass
+#end
+#outbound.close
+#
+#$stderr.puts [:generation_completed]
 
-$stderr.puts [:generation_completed]
+outbound_handled = 0
 
-loop do
+until outbound_handled == solutions_desired
+  if Time.now.to_f - time_start > 2.0
+    $stderr.puts([:progress, outbound.length, outbound_handled, solutions_desired].inspect)
+    time_start = Time.now.to_f
+  end
+
   bins, duration = outbound.pop
-  break if bins.nil? || duration.nil?
+
+  if bins.nil? || duration.nil?
+    Thread.pass
+    next
+  end
+
+  outbound_handled += 1
 
   durations << duration
   solutions << bins
 
-  sorted_by_x.order_by(bins[:uuid], bins)
-  sorted_by_y.order_by(bins[:uuid], bins)
-  sorted_by_z.order_by(bins[:uuid], bins)
+  ##Thread.new {
+  ##a = Thread.new {
+  # sorted_by_x.order_by(bins[:uuid], bins)
+  ##}
+  ##b = Thread.new {
+  # sorted_by_y.order_by(bins[:uuid], bins)
+  ##}
+  ##c = Thread.new {
+  # sorted_by_z.order_by(bins[:uuid], bins)
+  ##}
+  ##[a, b, c].collect(&:join)
+  ##}
 
   score = bins[:packings].length
 
@@ -128,13 +156,14 @@ loop do
   if score > max_score
     max_score = score
   end
+
 end
 
 average_item_time = durations.sum / durations.length.to_f
 
 $stderr.puts [:sorting_completed, ("%02.5f" % average_item_time)]
 
-$stderr.puts "solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
+$stderr.puts "#{outbound_handled}/#{solutions_desired} -- solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
 
 #mvc = EasyBoxPacker.find_smallest_container(items)
 mvc = nil
@@ -143,10 +172,10 @@ mvc = nil
 buffer_out_bytes = $stdout.write({
   :container => container,
   :items => items,
-  :solutions => solutions.slice(0, 4) + solutions.slice(-4, 4),
-  :solutions_x => sorted_by_x.items.slice(0, 4) + sorted_by_x.items.slice(-4, 4),
-  :solutions_y => sorted_by_y.items.slice(0, 4) + sorted_by_y.items.slice(-4, 4),
-  :solutions_z => sorted_by_z.items.slice(0, 4) + sorted_by_z.items.slice(-4, 4),
+  :solutions => (solutions.slice(0, 4) || []) + (solutions.slice(-4, 4) || []),
+  :solutions_x => (sorted_by_x.items.slice(0, 4) || []) + (sorted_by_x.items.slice(-4, 4) || []),
+  :solutions_y => (sorted_by_y.items.slice(0, 4) || []) + (sorted_by_y.items.slice(-4, 4) || []),
+  :solutions_z => (sorted_by_z.items.slice(0, 4) || []) + (sorted_by_z.items.slice(-4, 4) || []),
   :mvc => mvc}.to_json)
 
 $stderr.puts "persisted #{'%0.2f' % (buffer_out_bytes.to_f / 1000.0 / 1000.0)}mb"
