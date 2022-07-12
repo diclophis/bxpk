@@ -7,9 +7,12 @@ N_MAX = 2 ** (N_BITS - 2) - 1
 gem_dir = File.dirname(File.dirname(File.realpath(__FILE__)))
 lib = File.join(gem_dir, "lib")
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+
+require 'forwardable'
 require 'securerandom'
 require 'json'
 require 'easy_box_packer'
+require 'ordering_system'
 
 max_solutions = ARGV[0] ? ARGV[0].to_i : 4
 thread_count = ARGV[1] ? ARGV[1].to_i : 1
@@ -24,13 +27,34 @@ itemsp = items.permutation
 Thread.abort_on_exception = true
 GC.enable
 
-container = { dimensions: [40, 20, 20], weight_limit: 9999999999 }
+container = { dimensions: [97, 59, 67], weight_limit: 9999999999 }
 
 factorial = begin
               (Math.gamma(items.length+1)).to_i
             rescue FloatDomainError
               N_MAX
             end
+
+sorted_by_x = OrderingSystem.new do |a, b|
+  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
+  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
+
+  left.max > right.max
+end
+
+sorted_by_y = OrderingSystem.new do |a, b|
+  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
+  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
+
+  left.max > right.max
+end
+
+sorted_by_z = OrderingSystem.new do |a, b|
+  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
+  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
+
+  left.max > right.max
+end
 
 solutions = []
 durations = []
@@ -91,6 +115,10 @@ loop do
   durations << duration
   solutions << bins
 
+  sorted_by_x.order_by(bins[:uuid], bins)
+  sorted_by_y.order_by(bins[:uuid], bins)
+  sorted_by_z.order_by(bins[:uuid], bins)
+
   score = bins[:packings].length
 
   if score < min_score
@@ -112,6 +140,13 @@ $stderr.puts "solved #{solutions.length} min/max bins: #{min_score}/#{max_score}
 mvc = nil
 #puts mvc.inspect
 
-buffer_out_bytes = $stdout.write({:container => container, :items => items, :solutions => solutions, :mvc => mvc}.to_json)
+buffer_out_bytes = $stdout.write({
+  :container => container,
+  :items => items,
+  :solutions => solutions.slice(0, 4) + solutions.slice(-4, 4),
+  :solutions_x => sorted_by_x.items.slice(0, 4) + sorted_by_x.items.slice(-4, 4),
+  :solutions_y => sorted_by_y.items.slice(0, 4) + sorted_by_y.items.slice(-4, 4),
+  :solutions_z => sorted_by_z.items.slice(0, 4) + sorted_by_z.items.slice(-4, 4),
+  :mvc => mvc}.to_json)
 
 $stderr.puts "persisted #{'%0.2f' % (buffer_out_bytes.to_f / 1000.0 / 1000.0)}mb"

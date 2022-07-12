@@ -24,7 +24,7 @@ else
   output = Array.new(box_count) {
     {
       index: SecureRandom.uuid,
-      dimensions: [5.0 + (rand * 5.0) + ((rand > 0.5) ? 7.0 : 0.0), 5.0 + (rand * 5.0) + ((rand > 0.5) ? 9.0 : 0.0), 11.0 + (rand * 5.0)],
+      dimensions: [11.0 + (rand * 5.0) + ((rand > 0.5) ? 7.0 : 0.0), 17.0 + (rand * 5.0) + ((rand > 0.5) ? 9.0 : 0.0), 11.0 + (rand * 37.0)],
       weight: 1
     }
   }

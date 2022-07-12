@@ -77,9 +77,9 @@ module EasyBoxPacker
       end
 
       if packings.size > 1 && check_container_is_bigger_than_greedy_box(container, items)
-        { packings: generate_packing_for_greedy_box(items), errors: [] }
+        { uuid: SecureRandom.uuid, packings: generate_packing_for_greedy_box(items), errors: [] }
       else
-        { packings: packings, errors: errors }
+        { uuid: SecureRandom.uuid, packings: packings, errors: errors }
       end
     end
 

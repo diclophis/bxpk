@@ -13,8 +13,14 @@ let scale = 1.0;
 
 let fetchSolutions = await fetch('shared/rendering.json');
 let rendering = await fetchSolutions.json();
-let totalSolutions = rendering['solutions'].length;
-console.log("foo", totalSolutions);
+//console.log(rendering);
+
+let params = (new URL(document.location)).searchParams;
+
+let renderKey = params.get('renderKey') || 'solutions_x';
+
+let totalSolutions = rendering[renderKey].length;
+console.log("foo", renderKey, totalSolutions);
 
 let containerBin = rendering['container'];
 
@@ -113,7 +119,7 @@ function nextSolution() {
     currentBin = 0;
     binOffset = 0.0;
 
-    let thisSolution = rendering['solutions'][currentSolution];
+    let thisSolution = rendering[renderKey][currentSolution];
 
     let totalBins = thisSolution['packings'].length;
     return totalBins;
@@ -128,7 +134,7 @@ function resetScene() {
 }
 
 function placements(i) {
-  let thisSolution = rendering['solutions'][currentSolution];
+  let thisSolution = rendering[renderKey][currentSolution];
   if (typeof(thisSolution) === 'undefined') {
     debugger;
   }
@@ -160,7 +166,7 @@ function nextBin(totalBins) {
 
     placeBin();
 
-    let thisSolution = rendering['solutions'][currentSolution];
+    let thisSolution = rendering[renderKey][currentSolution];
     if (typeof(thisSolution) === 'undefined') {
       debugger;
     }
