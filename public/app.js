@@ -13,7 +13,7 @@ let scale = 1.0;
 
 let fetchSolutions = await fetch('shared/rendering.json');
 let rendering = await fetchSolutions.json();
-//console.log(rendering);
+console.log(rendering);
 
 let params = (new URL(document.location)).searchParams;
 

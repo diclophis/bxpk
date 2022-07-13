@@ -17,6 +17,7 @@ spec:
       labels:
         name: http-api
     spec:
+      terminationGracePeriodSeconds: 1
       volumes:
       - name: cache-volume
         emptyDir: {}
@@ -32,10 +33,8 @@ spec:
         resources:
           requests:
             memory: 50Mi
-            cpu: 10m
           limits:
-            memory: 400Mi
-            cpu: 5000m
+            memory: 3200Mi
         command:
         - "bash"
         - "script/hydrate.sh"
@@ -53,8 +52,11 @@ spec:
             memory: 50Mi
             cpu: 10m
           limits:
-            memory: 3200Mi
-            cpu: 5000m
+            memory: 300Mi
+            cpu: 1000m
+        #command:
+        #- "bash"
+        #- "script/hydrate.sh"
         command:
         - "rackup"
         - "config.ru"

@@ -25,7 +25,7 @@ else
     {
       index: SecureRandom.uuid,
       dimensions: [11.0 + (rand * 5.0) + ((rand > 0.5) ? 7.0 : 0.0), 17.0 + (rand * 5.0) + ((rand > 0.5) ? 9.0 : 0.0), 11.0 + (rand * 37.0)],
-      weight: 1
+      weight: 0.1
     }
   }
 end

@@ -27,7 +27,7 @@ itemsp = items.permutation
 Thread.abort_on_exception = true
 GC.enable
 
-container = { dimensions: [97, 59, 67], weight_limit: 9999999999 }
+container = { dimensions: [117, 59, 67], weight_limit: 99999999999 }
 
 factorial = begin
               (Math.gamma(items.length+1)).to_i
@@ -37,32 +37,72 @@ factorial = begin
 
 #xxx = Mutex.new
 
-sorted_by_x = OrderingSystem.new do |a, b|
-  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
-  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
+#:sorted_by_x = OrderingSystem.new do |a, b|
+#:  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
+#:  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| ((container[:dimensions][0] * bin_index.to_f) + placement[:position][0] + placement[:dimensions][0]) } }.flatten
+#:
+#:  left.max > right.max
+#:end
+#:
+#:sorted_by_y = OrderingSystem.new do |a, b|
+#:  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
+#:  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
+#:
+#:  left.max > right.max
+#:end
+#:
+#:sorted_by_z = OrderingSystem.new do |a, b|
+#:  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
+#:  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
+#:
+#:  left.max > right.max
+#:end
 
-  left.max > right.max
+sorter_by_x = Ractor.new do
+in_sorted_by_x = OrderingSystem.new
+begin
+  while true
+    cmp, in_c, in_uuid, in_bins = *Ractor.receive
+    #$stderr.puts [:sorted_by_xAA].inspect
+    in_sorted_by_x.order_by(cmp, in_c, in_uuid, in_bins)
+    #$stderr.puts [:sorted_by_x].inspect
+  end
+rescue Ractor::ClosedError
+  in_sorted_by_x
+end
 end
 
-sorted_by_y = OrderingSystem.new do |a, b|
-  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
-  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][1] + placement[:dimensions][1]) } }.flatten
-
-  left.max > right.max
+sorter_by_y = Ractor.new do
+in_sorted_by_y = OrderingSystem.new
+begin
+  while true
+    cmp, in_c, in_uuid, in_bins = *Ractor.receive
+    #$stderr.puts [:sorted_by_yAA].inspect
+    in_sorted_by_y.order_by(cmp, in_c, in_uuid, in_bins)
+    #$stderr.puts [:sorted_by_y].inspect
+  end
+rescue Ractor::ClosedError
+  in_sorted_by_y
+end
 end
 
-sorted_by_z = OrderingSystem.new do |a, b|
-  left = a[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
-  right = b[:packings].each_with_index.collect { |packing, bin_index| packing[:placements].collect { |placement| (placement[:position][2] + placement[:dimensions][2]) } }.flatten
-
-  left.max > right.max
+sorter_by_z = Ractor.new do
+in_sorted_by_z = OrderingSystem.new
+begin
+  while true
+    cmp, in_c, in_uuid, in_bins = *Ractor.receive
+    #$stderr.puts [:sorted_by_zAA].inspect
+    in_sorted_by_z.order_by(cmp, in_c, in_uuid, in_bins)
+    #$stderr.puts [:sorted_by_z].inspect
+  end
+rescue Ractor::ClosedError
+  in_sorted_by_z
+end
 end
 
-solutions = []
-durations = []
+      #in_sorted_by_y.order_by(:y, in_container, bins[:uuid], bins)
+      #in_sorted_by_z.order_by(:z, in_container, bins[:uuid], bins)
 
-min_score = N_MAX
-max_score = -1
 solutions_desired = ([factorial, max_solutions].min)
 
 threads = []
@@ -73,109 +113,211 @@ outbound = Queue.new
 
 $stderr.puts [:spawning_producer, solutions_desired].inspect
 
-producer = Thread.new {
-  solutions_desired.times { |i|
-    itemsn = itemsp.next
+#producer = Thread.new {
+producer = Ractor.new(stochastic, itemsp, solutions_desired) { |in_stochastic, in_itemsp, in_solutions_desired|
+  #$stderr.puts([:producer, :started].inspect)
+  ##in_stochastic, in_itemsp, in_solutions_desired = *Ractor.receive
+  ##$stderr.puts([:producer, :recv].inspect)
+  #Ractor.yield :bar
 
-    if stochastic
+  in_solutions_desired.times { |i|
+    itemsn = in_itemsp.next
+
+    if in_stochastic
       itemsn.shuffle!
     end
 
-    inbound << itemsn
+    #in_inbound << itemsn
+    #$stderr.puts([:producer, :yield].inspect)
+    Ractor.yield itemsn
   }
-  inbound.close
+
+  nil
+  #in_inbound.close
 }
 
-$stderr.puts [:spawning_consumers, thread_count].inspect
+
+collector = Ractor.new(solutions_desired, container, sorter_by_x, sorter_by_y, sorter_by_z) do |in_solutions_desired, in_container, in_sorter_by_x, in_sorter_by_y, in_sorter_by_z|
+  #$stderr.puts([:collector, :started].inspect)
+
+  out_min_score = N_MAX
+  out_max_score = -1
+
+  out_solutions = []
+  out_durations = []
+
+  #in_solutions_desired = *Ractor.receive
+  #$stderr.puts([:collector, :recv1].inspect)
+
+  outbound_handled = 0
+  time_start = Time.now.to_f
+
+  #Ractor.yield :hop
+
+  #until outbound_handled == in_solutions_desired
+  loop do
+    if Time.now.to_f - time_start > 2.0
+      $stderr.puts([:progress, outbound_handled, in_solutions_desired].inspect)
+      time_start = Time.now.to_f
+    end
+
+    #$stderr.puts([:collector, :wait_loop].inspect)
+    bins, duration = *Ractor.receive #outbound.pop
+    #$stderr.puts([:collector, :recv2].inspect)
+
+    #if bins.nil? || duration.nil?
+    #  Thread.pass
+    #  next
+    #end
+
+    outbound_handled += 1
+
+    out_durations << duration
+    out_solutions << bins
+
+    score = bins[:packings].length
+
+    if score < out_min_score
+      out_min_score = score
+    end
+
+    if score > out_max_score
+      out_max_score = score
+    end
+
+    in_sorter_by_x.send([:x, in_container, bins[:uuid], bins])
+    in_sorter_by_y.send([:y, in_container, bins[:uuid], bins])
+    in_sorter_by_z.send([:z, in_container, bins[:uuid], bins])
+
+    #in_sorted_by_x.order_by(:x, in_container, bins[:uuid], bins)
+    #in_sorted_by_y.order_by(:y, in_container, bins[:uuid], bins)
+    #in_sorted_by_z.order_by(:z, in_container, bins[:uuid], bins)
+
+    break if outbound_handled == in_solutions_desired
+  end
+
+  in_sorter_by_x.close_incoming
+  in_sorter_by_y.close_incoming
+  in_sorter_by_z.close_incoming
+
+  [out_min_score, out_max_score, out_durations, out_solutions, outbound_handled]
+end
+
 
 consumers = []
 thread_count.times do
-  consumers << Thread.new do
-    while i = inbound.pop
-      start = Time.now.to_f
-      bins = EasyBoxPacker.pack(
-        container,
-        i
-      )
-      raise bins[:errors].inspect unless bins[:errors].empty?
-      outbound << [bins, (Time.now.to_f - start).to_f]
-      sorted_by_x.order_by(bins[:uuid], bins)
-      sorted_by_y.order_by(bins[:uuid], bins)
-      sorted_by_z.order_by(bins[:uuid], bins)
+  consumer = Ractor.new(producer, collector, container) do |in_producer, in_collector, in_container|
+    #$stderr.puts([:consumer, :started].inspect)
+    #Ractor.yield :bitz
+
+    begin
+      while itms = in_producer.take #inbound.pop
+        #Ractor.yield :bitz
+
+        #$stderr.puts([:consumer, :in_producer_take].inspect)
+        start = Time.now.to_f
+        bins = EasyBoxPacker.pack(
+          in_container,
+          itms
+        )
+        raise bins[:errors].inspect unless bins[:errors].empty?
+
+        #in_sorter_by_x.send(bins[:uuid], bins)
+        #in_sorter_by_y.send(bins[:uuid], bins)
+        #in_sorter_by_z.send(bins[:uuid], bins)
+
+        #WTFFFFF
+        #in_sorted_by_x.order_by(:x, in_container, bins[:uuid], bins)
+        #in_sorted_by_y.order_by(:y, in_container, bins[:uuid], bins)
+        #in_sorted_by_z.order_by(:z, in_container, bins[:uuid], bins)
+
+        #in_sorter_by_x.send([:x, in_container, bins[:uuid], bins])
+        #in_sorter_by_y.send([:y, in_container, bins[:uuid], bins])
+        #in_sorter_by_z.send([:z, in_container, bins[:uuid], bins])
+
+        #in_sorted_by_x.order_by(bins[:uuid], bins)
+        #in_sorted_by_y.order_by(bins[:uuid], bins)
+        #in_sorted_by_z.order_by(bins[:uuid], bins)
+        ##outbound << [bins, (Time.now.to_f - start).to_f]
+        ##Ractor.yield [bins, (Time.now.to_f - start).to_f]
+        #$stderr.puts([:consumer, :gonna_send].inspect)
+
+        in_collector.send([bins, (Time.now.to_f - start).to_f])
+
+        #$stderr.puts([:consumer, :sent].inspect)
+
+        #Ractor.yield :bitz
+      end
+    rescue Ractor::ClosedError
     end
   end
+  consumers << consumer
+
+  #ext = consumer.take
+  #$stderr.puts [:spawned_runner, ext].inspect
 end
 
-time_start = Time.now.to_f
 #until outbound.length == solutions_desired
 #  Thread.pass
 #end
 #outbound.close
 #
-#$stderr.puts [:generation_completed]
 
-outbound_handled = 0
+#runner = Ractor.new(producer, consumers) do |in_producer, in_consumers|
+#  #$stderr.puts [:runner_started].inspect
+#  #Ractor.yield :foo
+#
+#  while true
+#    $stderr.puts [:runner_loop_a].inspect
+#
+#    #in_producer.take
+#    #$stderr.puts [:runner_loop_b].inspect
+#
+#    begin
+#      fip = in_consumers.collect(&:take)
+#      $stderr.puts [:runner_loop_c, fip].inspect
+#    rescue Ractor::ClosedError => e
+#      $stderr.puts [:runner_loop_closed, e].inspect
+#      break
+#    end
+#  end
+#end
 
-until outbound_handled == solutions_desired
-  if Time.now.to_f - time_start > 2.0
-    $stderr.puts([:progress, outbound.length, outbound_handled, solutions_desired].inspect)
-    time_start = Time.now.to_f
-  end
+##producer.send([stochastic, itemsp, solutions_desired])
+#bar = producer.take
+#$stderr.puts [:spawning_collector, bar].inspect
+#
+#ctr = collector.take
+#$stderr.puts [:spawning_consumers, ctr].inspect
+#
+#foo = runner.take
+#$stderr.puts [:stackedup_completed2, foo].inspect
 
-  bins, duration = outbound.pop
-
-  if bins.nil? || duration.nil?
-    Thread.pass
-    next
-  end
-
-  outbound_handled += 1
-
-  durations << duration
-  solutions << bins
-
-  ##Thread.new {
-  ##a = Thread.new {
-  # sorted_by_x.order_by(bins[:uuid], bins)
-  ##}
-  ##b = Thread.new {
-  # sorted_by_y.order_by(bins[:uuid], bins)
-  ##}
-  ##c = Thread.new {
-  # sorted_by_z.order_by(bins[:uuid], bins)
-  ##}
-  ##[a, b, c].collect(&:join)
-  ##}
-
-  score = bins[:packings].length
-
-  if score < min_score
-    min_score = score
-  end
-
-  if score > max_score
-    max_score = score
-  end
-
-end
+min_score, max_score, durations, solutions, out_outbound_handled = collector.take
 
 average_item_time = durations.sum / durations.length.to_f
 
-$stderr.puts [:sorting_completed, ("%02.5f" % average_item_time)]
+$stderr.puts [:sorting_completed, ("%02.5f" % average_item_time)].inspect
 
-$stderr.puts "#{outbound_handled}/#{solutions_desired} -- solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
+$stderr.puts "#{out_outbound_handled}/#{solutions_desired} -- solved #{solutions.length} min/max bins: #{min_score}/#{max_score}"
 
 #mvc = EasyBoxPacker.find_smallest_container(items)
-mvc = nil
 #puts mvc.inspect
+mvc = nil
+
+sorted_by_x = sorter_by_x.take.items
+sorted_by_y = sorter_by_y.take.items
+sorted_by_z = sorter_by_z.take.items
+
+$stderr.puts "resolved sorted by"
 
 buffer_out_bytes = $stdout.write({
   :container => container,
   :items => items,
   :solutions => (solutions.slice(0, 4) || []) + (solutions.slice(-4, 4) || []),
-  :solutions_x => (sorted_by_x.items.slice(0, 4) || []) + (sorted_by_x.items.slice(-4, 4) || []),
-  :solutions_y => (sorted_by_y.items.slice(0, 4) || []) + (sorted_by_y.items.slice(-4, 4) || []),
-  :solutions_z => (sorted_by_z.items.slice(0, 4) || []) + (sorted_by_z.items.slice(-4, 4) || []),
+  :solutions_x => (sorted_by_x.slice(0, 4) || []) + (sorted_by_x.slice(-4, 4) || []),
+  :solutions_y => (sorted_by_y.slice(0, 4) || []) + (sorted_by_y.slice(-4, 4) || []),
+  :solutions_z => (sorted_by_z.slice(0, 4) || []) + (sorted_by_z.slice(-4, 4) || []),
   :mvc => mvc}.to_json)
 
 $stderr.puts "persisted #{'%0.2f' % (buffer_out_bytes.to_f / 1000.0 / 1000.0)}mb"
